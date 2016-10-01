@@ -1,19 +1,5 @@
 
-import csv
-import matplotlib.pyplot as plt
 import numpy as np
-
-def load_data(input_filepath):
-    data = []
-    with open(input_filepath, 'rb') as infile:
-        # remove header
-        infile.readline()
-        # read each line 
-        csv_reader = csv.reader(infile)
-        for row in csv_reader:
-            data.append(int(row[-1]))
-    data = np.asarray(data, dtype=np.int64)
-    return data
 
 def log_sum_exp(values):
     max_value = max(values)
@@ -26,12 +12,13 @@ def log_sum_exp(values):
 
     return np.log(total) + max_value
 
-def plot_data(data):
-    plt.plot(range(len(data)), data)
-    plt.show()
+def poisson_density(point, mean):
+    return mean ** point * np.exp(-mean) / np.math.factorial(point)
 
-if __name__ == '__main__':
-    input_filepath = '../data/old_faithful.csv'
-    data = load_data(input_filepath)
-    plot_data(data)
-    print data
+def log_factorial(value):
+    return np.sum(np.log(v) for v in range(1, int(value) + 1, 1))
+
+def log_poisson_density(point, mean):
+    if mean <= 0:
+        raise ValueError('mean value must be > 0, got : {}'.format(mean))
+    return point * np.log(mean) - mean - log_factorial(point)

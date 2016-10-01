@@ -3,25 +3,16 @@ import numpy as np
 
 import utils
 
-def poisson_density(point, mean):
-    return mean ** point * np.exp(-mean) / np.math.factorial(point)
-
-def log_factorial(value):
-    return np.sum(np.log(v) for v in range(1, int(value) + 1, 1))
-
-def log_poisson_density(point, mean):
-    if mean <= 0:
-        raise ValueError('mean value must be > 0, got : {}'.format(mean))
-    return point * np.log(mean) - mean - log_factorial(point)
-
 class HMM(object):
 
-    def __init__(self, data, k, max_iterations, threshold, verbose=True, seed=1):
+    def __init__(self, data, k, max_iterations, threshold, log_pdf, 
+            verbose=True, seed=1):
         self.data = data
         self.k = k
         self.T = data.shape[0]
         self.max_iterations = max_iterations
         self.threshold = threshold
+        self.log_pdf = log_pdf
         self.verbose = verbose
         np.random.seed(seed)
 
@@ -110,7 +101,7 @@ class HMM(object):
         self.log_densities = np.empty((self.T, self.k))
         for tidx in range(self.T):
             for i in range(self.k):
-                self.log_densities[tidx, i] = log_poisson_density(self.data[tidx], self.B[i])
+                self.log_densities[tidx, i] = self.log_pdf(self.data[tidx], self.B[i])
 
         # compute alphas and betas
         self.forward()
@@ -178,4 +169,3 @@ class HMM(object):
         num_samples = len(self.data)
         bic = log_prob - num_params / 2. * np.log(num_samples) 
         return log_prob, bic
-
