@@ -22,3 +22,22 @@ def log_poisson_density(point, mean):
     if mean <= 0:
         raise ValueError('mean value must be > 0, got : {}'.format(mean))
     return point * np.log(mean) - mean - log_factorial(point)
+
+def log_multinomial_density(point, probs):
+    return np.log(probs[point])
+
+def compute_multinomial_classes(data):
+    """
+    Description:
+        - given a list of discrete values taking on values 
+            between 0 and m - 1, return m.
+
+    Args:
+        - data: a row vector of discrete values
+
+    Returns:
+        - m: the number of classes
+    """
+    assert min(data) == 0, "discrete classes must start at 0"
+    assert np.array_equal([int(v) for v in data], data)
+    return max(data) + 1

@@ -14,3 +14,11 @@
             - so this would be a multinomial (output) hidden markov model?
                 + yep seems like that's a thing 
                 + ok so, implement that?
+    + you of course have to account for the state in addition to the action 
+        * otherwise how could the learned option condition on the state to choose the action?
+        * well, if your goal is the option, then sure. But what if your goal is not the option?
+            - like say you only model the actions and ignore the state
+            - what you'll end up with is still a set of classes and probability distributions over primitive actions for each of those classes
+                + so I can see that as a proof of concept
+                + but if you want to use it I think you have to condition on the state
+                    * maybe, probably

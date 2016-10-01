@@ -15,12 +15,28 @@ def load_data(input_filepath):
     data = np.asarray(data, dtype=np.int64)
     return data
 
+def load_action_data(input_filepath):
+    max_data = []
+    cur_data = []
+    with open(input_filepath, 'rb') as infile:
+        for row in infile:
+            row = row.strip()
+            if row == '':
+                if len(cur_data) > len(max_data):
+                    max_data = cur_data
+                cur_data = []
+            else:
+                cur_data.append(int(row))
+    return np.array(max_data)
+
 def plot_data(data):
     plt.plot(range(len(data)), data)
     plt.show()
 
 if __name__ == '__main__':
-    input_filepath = '../data/old_faithful.csv'
-    data = load_data(input_filepath)
-    plot_data(data)
-    print data
+    # input_filepath = '../data/old_faithful.csv'
+    # data = load_data(input_filepath)
+    # plot_data(data)
+    # print data
+    input_filepath = '/Users/wulfebw/Desktop/agent_0_actions.txt'
+    load_action_data(input_filepath)

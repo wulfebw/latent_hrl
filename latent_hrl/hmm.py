@@ -5,35 +5,14 @@ import utils
 
 class HMM(object):
 
-    def __init__(self, data, k, max_iterations, threshold, log_pdf, 
-            verbose=True, seed=1):
+    def __init__(self, data, k, max_iterations, threshold=1e-6, verbose=True, seed=1):
         self.data = data
         self.k = k
         self.T = data.shape[0]
         self.max_iterations = max_iterations
         self.threshold = threshold
-        self.log_pdf = log_pdf
         self.verbose = verbose
         np.random.seed(seed)
-
-    def initialize(self):
-        # unpack dimensions
-        T, k = self.T, self.k
-
-        # initialize model parameters
-        unnormalized_pi = np.random.rand(k)
-        self.pi = unnormalized_pi / np.sum(unnormalized_pi)
-        unnormalized_A = np.random.rand(k, k) 
-        self.A = unnormalized_A / np.sum(unnormalized_A, axis=1, keepdims=True)
-        self.B = np.float64(np.random.randint(low=0, high=np.max(self.data), size=(k)))
-
-        # allocate responsibilities containers
-        self.alphas = np.empty((T, k))
-        self.betas = np.empty((T, k))
-
-        # wiki
-        self.gammas = np.empty((T, k))
-        self.etas = np.empty((T, k, k))
 
     def forward(self):
         """
@@ -128,19 +107,6 @@ class HMM(object):
         # the log sum exp of the last alphas gives the log prob of the full sequence
         return utils.log_sum_exp(self.alphas[-1, :])
 
-    def m_step(self):
-        # pi
-        self.pi = self.gammas[0, :]
-
-        # transition probabilities
-        for i in range(self.k):
-            for j in range(self.k):
-                self.A[i, j] = np.sum(self.etas[:-1, i, j]) / np.sum(self.gammas[:-1, i])
-
-        # emission probabilities
-        self.B = np.sum(self.data[:, np.newaxis] * self.gammas, axis=0) 
-        self.B /= np.sum(self.gammas, axis=0)
-
     def fit(self):
 
         # initialize parameter estimates
@@ -169,3 +135,114 @@ class HMM(object):
         num_samples = len(self.data)
         bic = log_prob - num_params / 2. * np.log(num_samples) 
         return log_prob, bic
+
+class PoissonHMM(HMM):
+
+    def __init__(self, data, k, max_iterations, threshold=1e-6, 
+            verbose=True, seed=1):
+        super(PoissonHMM, self).__init__(
+            data, k, max_iterations, threshold, verbose, seed)
+        self.log_pdf = utils.log_poisson_density
+
+    def initialize(self):
+        # unpack dimensions
+        T, k = self.T, self.k
+
+        # initialize model parameters
+        unnormalized_pi = np.random.rand(k)
+        self.pi = unnormalized_pi / np.sum(unnormalized_pi)
+        unnormalized_A = np.random.rand(k, k) 
+        self.A = unnormalized_A / np.sum(unnormalized_A, axis=1, keepdims=True)
+        self.B = np.float64(np.random.randint(low=0, high=np.max(self.data), size=(k)))
+
+        # allocate responsibilities containers
+        self.alphas = np.empty((T, k))
+        self.betas = np.empty((T, k))
+
+        # wiki
+        self.gammas = np.empty((T, k))
+        self.etas = np.empty((T, k, k))
+
+    def m_step(self):
+        # pi
+        self.pi = self.gammas[0, :]
+
+        # transition probabilities
+        for i in range(self.k):
+            for j in range(self.k):
+                self.A[i, j] = np.sum(self.etas[:-1, i, j]) / np.sum(self.gammas[:-1, i])
+
+        # emission probabilities
+        self.B = np.sum(self.data[:, np.newaxis] * self.gammas, axis=0) 
+        self.B /= np.sum(self.gammas, axis=0)
+
+class MultinomialHMM(HMM):
+
+    def __init__(self, data, k, max_iterations, threshold=1e-6, 
+            verbose=True, seed=1):
+        super(MultinomialHMM, self).__init__(
+            data, k, max_iterations, threshold, verbose, seed)
+        self.log_pdf = utils.log_multinomial_density
+
+        # in multinomial case, we assume that the output is discrete and 
+        # that it can take on 1 of m values. We extract m from the data
+        self.m = utils.compute_multinomial_classes(data)
+
+    def initialize(self):
+        # unpack dimensions
+        T, k, m = self.T, self.k, self.m
+
+        # initialize model parameters
+        unnormalized_pi = np.random.rand(k)
+        self.pi = unnormalized_pi / np.sum(unnormalized_pi)
+
+        # transition probabilities
+        unnormalized_A = np.random.rand(k, k) 
+        self.A = unnormalized_A / np.sum(unnormalized_A, axis=1, keepdims=True)
+        
+        # emission probabilities for m discrete outputs for k latent classes
+        unnormalized_B = np.random.rand(k, m)
+        self.B = np.float64(
+            unnormalized_B / np.sum(unnormalized_B, axis=1, keepdims=True))
+
+        # allocate responsibilities containers
+        self.alphas = np.empty((T, k))
+        self.betas = np.empty((T, k))
+
+        # wiki
+        self.gammas = np.empty((T, k))
+        self.etas = np.empty((T, k, k))
+
+    def m_step(self):
+        # pi
+        self.pi = self.gammas[0, :]
+
+        # transition probabilities
+        for i in range(self.k):
+            for j in range(self.k):
+                self.A[i, j] = np.sum(self.etas[:-1, i, j]) / np.sum(self.gammas[:-1, i])
+
+        # emission probabilities
+        # print self.gammas
+        # print self.B
+        # print self.data
+        # raw_input()
+
+        # B shape is (k, m)
+        # gammas shape is (T, k)
+        # to get new B, I want to focus on the specific latent class (row of B)
+        # then sum over time, where I add one to the latent class row in the position 
+        # of the observed variable, multiplying by gamma of this timestep and this class
+        # then normalize at the end
+
+        new_B = np.zeros((self.k, self.m))
+        for class_idx in range(self.k):
+            for tidx in range(self.T):
+                new_B[class_idx, self.data[tidx]] += 1 * self.gammas[tidx, class_idx]
+            new_B[class_idx, :] /= np.sum(self.gammas[:, class_idx])
+        self.B = new_B
+            
+
+
+        # self.B = np.sum(self.data[:, np.newaxis] * self.gammas, axis=0) 
+        # self.B /= np.sum(self.gammas, axis=0)
