@@ -11,17 +11,19 @@ def fit_poisson_hmm(data):
     max_iterations = 100
     threshold = 1e-5
     seed = 10 # np.random.randint(100)
-    model = hmm.PoissonHMM(data, k, max_iterations, threshold, verbose=True, seed=seed)
+    model = hmm.PoissonHMM(data, k, max_iterations, threshold, 
+        verbose=True, seed=seed)
     log_prob, bic = model.fit()
     print model.A
     print model.B
 
 def fit_multinomial_hmm(data):
-    k = 4
+    k = 3
     max_iterations = 100
     threshold = 1e-5
     seed = np.random.randint(100)
-    model = hmm.MultinomialHMM(data, k, max_iterations, threshold, verbose=True, seed=seed)
+    model = hmm.MultinomialHMM(data, k, max_iterations, threshold, 
+        verbose=True, seed=seed)
     log_prob, bic = model.fit()
     print 'A: ', model.A
     print 'B: ', model.B
@@ -32,6 +34,8 @@ if __name__ == '__main__':
     # fit_poisson_hmm(data)
     # data = generate_data.generate_multinomial_data()
 
-    input_filepath = '/Users/wulfebw/Desktop/agent_0_actions.txt'
-    data = data_utils.load_action_data(input_filepath)
+    # input_filepath = '/Users/wulfebw/Desktop/agent_0_actions.txt'
+    # data = data_utils.load_action_data(input_filepath)
+    data = np.array([1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,0,1,0,0,0,0,1,0,1,0,0,0,
+        1,1,1,1,1,0,0,0,0,0,1,1,1,1,0,0,0,0])
     fit_multinomial_hmm(data)

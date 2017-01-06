@@ -163,6 +163,12 @@ class PoissonHMM(HMM):
         self.gammas = np.empty((T, k))
         self.etas = np.empty((T, k, k))
 
+        # these containers will normally be initialized during the e-step, but 
+        # if forward is called outside of that will need to be initialized here 
+        # as well
+        self.log_A = np.log(self.A)
+        self.log_densities = np.empty((self.T, self.k))
+
     def m_step(self):
         # pi
         self.pi = self.gammas[0, :]
@@ -223,18 +229,12 @@ class MultinomialHMM(HMM):
                 self.A[i, j] = np.sum(self.etas[:-1, i, j]) / np.sum(self.gammas[:-1, i])
 
         # emission probabilities
-        # print self.gammas
-        # print self.B
-        # print self.data
-        # raw_input()
-
         # B shape is (k, m)
         # gammas shape is (T, k)
         # to get new B, I want to focus on the specific latent class (row of B)
         # then sum over time, where I add one to the latent class row in the position 
         # of the observed variable, multiplying by gamma of this timestep and this class
         # then normalize at the end
-
         new_B = np.zeros((self.k, self.m))
         for class_idx in range(self.k):
             for tidx in range(self.T):
@@ -242,7 +242,3 @@ class MultinomialHMM(HMM):
             new_B[class_idx, :] /= np.sum(self.gammas[:, class_idx])
         self.B = new_B
             
-
-
-        # self.B = np.sum(self.data[:, np.newaxis] * self.gammas, axis=0) 
-        # self.B /= np.sum(self.gammas, axis=0)
