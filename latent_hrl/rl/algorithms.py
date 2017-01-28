@@ -1,13 +1,12 @@
 
+import cPickle
 import collections
 import copy
 import itertools
 import numpy as np
 import os
-import cPickle
+import random
 import time
-
-import data_utils
 
 class RLAlgorithm(object):
     """
@@ -94,8 +93,13 @@ class QLearningAlgorithm(ValueLearningAlgorithm):
     """
     :description: Class implementing the Q-learning algorithm
     """
-    def __init__(self, actions, discount, explorationProb, stepSize):
+    def __init__(self, actions, discount, explorationProb, stepSize,
+            minExplorationProb=.01, maxSteps=100000):
         super(QLearningAlgorithm, self).__init__(actions, discount, explorationProb, stepSize)
+        self.steps = 0
+        self.minExplorationProb = minExplorationProb
+        self.maxSteps = maxSteps
+        self.initialExplorationProb = explorationProb
 
     def incorporateFeedback(self, state, action, reward, newState):
         """
@@ -116,6 +120,13 @@ class QLearningAlgorithm(ValueLearningAlgorithm):
         :type rval: int or None
         :param rval: if rval returned, then this is the next action taken
         """
+        self.steps += 1
+        if self.explorationProb > 0.01:
+            self.explorationProb = self.initialExplorationProb * (
+                1 - self.steps / float(self.maxSteps))
+            self.explorationProb = max(self.minExplorationProb, self.explorationProb)
+            print('explorationProb: {}'.format(self.explorationProb))
+
         stepSize = self.stepSize
         prediction = self.getQ(state, action)
         target = reward

@@ -6,7 +6,7 @@ import os
 import sys
 import unittest
 
-path = os.path.join(os.path.dirname(__file__), os.pardir, 'latent_hrl')
+path = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, 'latent_hrl')
 sys.path.append(os.path.abspath(path))
 
 import hmm.data_utils

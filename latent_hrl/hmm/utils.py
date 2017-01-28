@@ -38,6 +38,11 @@ def compute_multinomial_classes(data):
     Returns:
         - m: the number of classes
     """
-    assert min(data) == 0, "discrete classes must start at 0"
-    assert np.array_equal([int(v) for v in data], data)
-    return max(data) + 1
+    if type(data[0]) != int:
+        temp_data = np.hstack(data)
+        assert min(temp_data) == 0, "discrete classes must start at 0"
+        return max(temp_data) + 1
+    else:
+        assert min(data) == 0, "discrete classes must start at 0"
+        assert np.array_equal([int(v) for v in data], data)
+        return max(data) + 1
