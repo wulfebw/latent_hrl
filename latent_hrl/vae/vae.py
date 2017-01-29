@@ -1,5 +1,7 @@
 """
-you cannot run with the sequences set to the same length and then use a mask because then the rnn is forward proping into zeros and shit
+problems:
+1. you cannot run with the sequences set to the same length and then use a mask because then the rnn is forward proping into zeros
+2. batch size issue - need to change sizes to placeholders for rnns
 """
 
 
@@ -42,11 +44,14 @@ class VAE(object):
                 # but until then
                 if len(x) != self.flags.batch_size:
                     continue
-                summary, loss, _ = self.session.run(
-                    [self._summary_op, self._loss, self._train_op],
+                noise = np.random.randn(
+                    self.flags.batch_size, self.flags.latent_dim)
+                outputs_list = [self._summary_op, self._loss, self._train_op]
+                summary, loss, _ = self.session.run(outputs_list,
                     feed_dict={self._states_ph: x, self._actions_ph: a,
                     self._masks_ph: m, 
-                    self._dropout_ph: self.flags.dropout_keep_prob})
+                    self._dropout_ph: self.flags.dropout_keep_prob,
+                    self._noise_ph: noise})
                 self.train_writer.add_summary(summary, epoch)
                 train_loss += loss
 
@@ -56,9 +61,12 @@ class VAE(object):
                 # but until then
                 if len(x) != self.flags.batch_size:
                     continue
+                noise = np.random.randn(
+                    self.flags.batch_size, self.flags.latent_dim)
                 summary, loss = self.session.run([self._summary_op, self._loss],
                     feed_dict={self._states_ph: x, self._actions_ph: a, 
-                    self._masks_ph: m, self._dropout_ph: 1.})
+                    self._masks_ph: m, self._dropout_ph: 1.,
+                    self._noise_ph: noise})
                 self.test_writer.add_summary(summary, epoch)
                 val_loss += loss
 
@@ -75,11 +83,13 @@ class VAE(object):
 
     def reconstruct(self, states, actions, masks):
         outputs_list = [self._states_pred, self._action_probs]
+        noise = np.random.randn(len(states), self.flags.latent_dim)
         feed_dict = {
             self._states_ph: states, 
             self._actions_ph: actions,
             self._masks_ph: masks,
-            self._dropout_ph: 1.
+            self._dropout_ph: 1.,
+            self._noise_ph: noise
         }
         states_hat, action_probs_hat = self.session.run(
             outputs_list, feed_dict=feed_dict)
@@ -132,7 +142,7 @@ class VAE(object):
         self._mu, self._sigma = self._encode(
             self._states_ph, self._actions_ph, self._dropout_ph)
         self._states_pred, self._action_scores_pred = self._decode(
-            self._mu, self._sigma, self._dropout_ph, self._noise_ph)
+            self._mu, self._sigma, self._noise_ph, self._dropout_ph)
 
         # loss
         self._loss, self._action_probs = self._build_loss(
@@ -225,8 +235,10 @@ class VAE(object):
         # scale latent state to lstm hidden state dim
         w_z = tf.get_variable('w_z', (latent_dim, hidden_dim))
         b_z = tf.get_variable('b_z', (hidden_dim,))
+        
         # compute latent state, and from that the initial cell state
         z = noise * sigma + mu
+
         # should the cell_state be z or should the hidden state or both?
         hidden_state = tf.matmul(z, w_z) + b_z
         cell_state = tf.zeros((batch_size, hidden_dim), dtype=tf.float32)

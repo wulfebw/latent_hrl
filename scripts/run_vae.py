@@ -51,7 +51,7 @@ tf.app.flags.DEFINE_integer('hidden_dim',
                             32,
                             """Hidden units in each hidden layer.""")
 tf.app.flags.DEFINE_integer('latent_dim', 
-                            4,
+                            2,
                             """Dimension of latent space.""")
 tf.app.flags.DEFINE_integer('timesteps', 
                             5,
@@ -98,6 +98,8 @@ def evaluate(model, dataset):
     print('a: {} a_hat: {}'.format(a, a_hat))
 
 def main(argv=None):
+    np.random.seed(FLAGS.random_seed)
+    tf.set_random_seed(FLAGS.random_seed)
     data, FLAGS.state_dim, FLAGS.action_dim = vae.data_utils.load_run_data(
         FLAGS.dataset_filepath, timestep=FLAGS.timesteps, normalize=True, 
         debug_size=FLAGS.debug_size, shuffle=True)
