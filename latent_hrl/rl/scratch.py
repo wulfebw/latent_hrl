@@ -3,10 +3,10 @@ import numpy as np
 import os
 import sys
 
-path = os.path.join(os.path.dirname(__file__), os.pardir)
+path = os.path.join(os.path.dirname(__file__), os.pardir, 'latent_hrl')
 sys.path.append(os.path.abspath(path))
 
-import algorithms
+import rl.algorithms as algorithms
 # from hmm.hmm import MultinomialHMM
 from hmmlearn import hmm
 import utils
@@ -104,7 +104,7 @@ class ScratchAlgorithm(object):
             x = self.last_action_state
             a = self.actions[-1][0]
             r = self.cur_return
-            loss = self.levels[-1].incorporateFeedback(x, a, r, nx)
+            loss = self.levels[-1].incorporate_feedback(x, a, r, nx)
             if (loss < self.enlighten_threshold 
                     and self.steps_since_prev_enlighten > self.init_enlighten_steps
                     and self.num_levels < self.max_levels):

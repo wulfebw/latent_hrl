@@ -1,5 +1,4 @@
 
-import cPickle
 import collections
 import copy
 import itertools
@@ -48,7 +47,7 @@ class ValueLearningAlgorithm(RLAlgorithm):
         """
         :description: this is the identity feature extractor, so we use tables here for the function
         """
-        return [((state, action), 1)]
+        return [((tuple(state), action), 1)]
 
     def getQ(self, state, action):
         """
@@ -94,14 +93,17 @@ class QLearningAlgorithm(ValueLearningAlgorithm):
     :description: Class implementing the Q-learning algorithm
     """
     def __init__(self, actions, discount, explorationProb, stepSize,
-            minExplorationProb=.01, maxSteps=100000):
+            minExplorationProb=.01, maxSteps=10000):
         super(QLearningAlgorithm, self).__init__(actions, discount, explorationProb, stepSize)
         self.steps = 0
         self.minExplorationProb = minExplorationProb
         self.maxSteps = maxSteps
         self.initialExplorationProb = explorationProb
 
-    def incorporateFeedback(self, state, action, reward, newState):
+    def step(self, state):
+        return self.getAction(state)
+
+    def incorporate_feedback(self, state, action, reward, newState):
         """
         :description: performs a Q-learning update
 
@@ -121,16 +123,15 @@ class QLearningAlgorithm(ValueLearningAlgorithm):
         :param rval: if rval returned, then this is the next action taken
         """
         self.steps += 1
-        if self.explorationProb > 0.01:
+        if self.explorationProb > self.minExplorationProb:
             self.explorationProb = self.initialExplorationProb * (
                 1 - self.steps / float(self.maxSteps))
             self.explorationProb = max(self.minExplorationProb, self.explorationProb)
-            print('explorationProb: {}'.format(self.explorationProb))
 
         stepSize = self.stepSize
         prediction = self.getQ(state, action)
         target = reward
-        if newState != None:
+        if newState is not None:
             target += self.discount * max(self.getQ(newState, newAction) 
                 for newAction in self.actions)
 

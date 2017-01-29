@@ -112,3 +112,19 @@ CTestTestfile.cmake
 
 # gym
 *.json
+
+# snapshots
+*.pkl
+*.npz
+
+# summaries
+*events*
+
+# media
+*.pdf
+*.gif
+
+# snapshots
+*snapshots*
+*media*
+*visualizations*

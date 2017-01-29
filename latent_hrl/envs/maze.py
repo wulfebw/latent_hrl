@@ -24,7 +24,10 @@ class MazeEnv(gym.Env):
         self._reset()
 
     def _reset(self):
-        self.state = [0,0]
+        # start in random state in the maze
+        x = np.random.randint(self.max_pos)
+        y = np.random.randint(self.max_pos)
+        self.state = np.array([x,y])
         return self.state
 
     def _step(self, a):
