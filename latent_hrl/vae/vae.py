@@ -191,12 +191,12 @@ class VAE(object):
 
         # concat one-hot actions to state for full input
         actions = tf.one_hot(actions, action_dim, axis=2)
-        inputs = tf.concat(2, (states, actions))
+        inputs = tf.concat((states, actions), axis=2)
 
-        # lstm cell output
-        lstm = rnn.rnn_cell.BasicLSTMCell(hidden_dim, forget_bias=1.0)
+        # gru cell output
+        gru = tf.contrib.rnn.GRUCell(hidden_dim)
         outputs, state = tf.nn.dynamic_rnn(
-            cell=lstm, dtype=tf.float32, inputs=inputs)
+            cell=gru, dtype=tf.float32, inputs=inputs)
 
         # only use the final output to generate the parameters
         output = tf.squeeze(tf.slice(outputs, begin=(0,timesteps - 1,0), 
@@ -229,8 +229,7 @@ class VAE(object):
         input_dim = state_dim + action_dim
 
         # use lstm cell
-        lstm = rnn.rnn_cell.BasicLSTMCell(hidden_dim, forget_bias=1.0, 
-            state_is_tuple=True)
+        lstm = tf.contrib.rnn.BasicLSTMCell(hidden_dim)
 
         # scale latent state to lstm hidden state dim
         w_z = tf.get_variable('w_z', (latent_dim, hidden_dim))
@@ -273,8 +272,8 @@ class VAE(object):
                 size=(-1, action_dim)), 1))
 
         # concat the lists into tensors
-        states = tf.concat(values=states, concat_dim=1)
-        action_scores = tf.concat(values=action_scores, concat_dim=1)
+        states = tf.concat(values=states, axis=1)
+        action_scores = tf.concat(values=action_scores, axis=1)
         return states, action_scores
 
     def _build_loss(self, x, a, x_hat, a_scores, mask):
@@ -298,7 +297,7 @@ class VAE(object):
 
         # action loss, yields tensor of shape (batch, timesteps)
         action_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            a_scores, a)
+            logits=a_scores, labels=a)
 
         # state loss, reduce sum over the state dimension yielding
         # tensor of shape (batch, timesteps)
