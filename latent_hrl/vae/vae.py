@@ -95,6 +95,28 @@ class VAE(object):
             outputs_list, feed_dict=feed_dict)
         return states_hat, action_probs_hat
 
+    def encode(self, states, actions, masks):
+        outputs_list = [self._mu, self._sigma]
+        feed_dict = {
+            self._states_ph: states, 
+            self._actions_ph: actions,
+            self._masks_ph: masks,
+            self._dropout_ph: 1.
+        }
+        mu, sigma = self.session.run(outputs_list, feed_dict=feed_dict)
+        return mu, sigma
+
+    def decode(self, mus):
+        outputs_list = [self._states_pred, self._action_probs]
+        feed_dict = {
+            self._mu: mus,
+            self._sigma:np.zeros(mus.shape),
+            self._noise_ph:np.zeros(mus.shape),
+            self._dropout_ph: 1.
+        }
+        states, action_probs = self.session.run(outputs_list, feed_dict=feed_dict)
+        return states, action_probs
+
     def save(self, epoch):
         """
         Description:
@@ -139,7 +161,7 @@ class VAE(object):
             self._noise_ph) = self._build_placeholders()
 
         # network
-        self._mu, self._sigma = self._encode(
+        self._mu, self._sigma, self._log_var  = self._encode(
             self._states_ph, self._actions_ph, self._dropout_ph)
         self._states_pred, self._action_scores_pred = self._decode(
             self._mu, self._sigma, self._noise_ph, self._dropout_ph)
@@ -147,7 +169,7 @@ class VAE(object):
         # loss
         self._loss, self._action_probs = self._build_loss(
             self._states_ph, self._actions_ph, self._states_pred, 
-            self._action_scores_pred, self._masks_ph)
+            self._action_scores_pred, self._masks_ph, self._mu, self._log_var)
 
         # train operation
         self._train_op = self._build_train_op(self._loss)
@@ -219,7 +241,7 @@ class VAE(object):
         tf.summary.histogram('mu', mu)
         tf.summary.histogram('sigma', sigma)
 
-        return mu, sigma
+        return mu, sigma, log_var
 
     def _decode(self, mu, sigma, noise, dropout):
         # unpack
@@ -240,6 +262,7 @@ class VAE(object):
 
         # should the cell_state be z or should the hidden state or both?
         hidden_state = tf.matmul(z, w_z) + b_z
+
         cell_state = tf.zeros((batch_size, hidden_dim), dtype=tf.float32)
         state = (cell_state, hidden_state)
 
@@ -276,7 +299,7 @@ class VAE(object):
         action_scores = tf.concat(values=action_scores, axis=1)
         return states, action_scores
 
-    def _build_loss(self, x, a, x_hat, a_scores, mask):
+    def _build_loss(self, x, a, x_hat, a_scores, mask, mu, log_var):
         """
         Description:
             - Build a loss function to optimize using the 
@@ -303,9 +326,16 @@ class VAE(object):
         # tensor of shape (batch, timesteps)
         state_loss = tf.reduce_sum((x - x_hat) ** 2, reduction_indices=(2))
 
+        # latent loss (KL between prior and actual)
+        latent_loss = self.flags.latent_lambda * -tf.reduce_sum(
+            1 + log_var - mu ** 2 - tf.exp(log_var))
+
         # add the two, and then apply a mask over the invalid timesteps
-        total_loss = tf.reduce_sum((
+        reconstruction_loss = tf.reduce_sum((
             self.flags.action_lambda * action_loss + state_loss) * mask)
+
+        # combined reconstruction and latent for total loss
+        total_loss =  latent_loss + reconstruction_loss
 
         # collect regularization losses
         reg_loss = tf.reduce_sum(tf.get_collection(
@@ -315,6 +345,8 @@ class VAE(object):
         # summaries
         tf.summary.scalar('action_loss', tf.reduce_sum(action_loss * mask))
         tf.summary.scalar('state_loss', tf.reduce_sum(state_loss * mask))
+        tf.summary.scalar('reconstruction_loss', reconstruction_loss)
+        tf.summary.scalar('latent_loss', latent_loss)
         tf.summary.scalar('loss', total_loss)
         tf.summary.scalar('l2_reg_loss', reg_loss)
 
